@@ -102,7 +102,7 @@ int main()
 		if (recvResult > 0)
 		{
 			std::string recmessage = std::string(&recvbuf[0], recvResult);
-			std::cout << recmessage;
+			std::cout << recmessage << std::endl;
 			sendResult = send(ClientSocket, recvbuf, recvResult, 0);
 			if (sendResult == SOCKET_ERROR)
 			{

@@ -8,6 +8,7 @@ public class Client
     private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
+    private DataInputStream rescIn;
 
     Client(String addr, int port)
     {
@@ -17,7 +18,7 @@ public class Client
             socket = new Socket(addr, port);
             System.out.println("connected");
             in = new DataInputStream(System.in);
-
+            rescIn = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
         }
         catch (UnknownHostException e)
@@ -28,21 +29,25 @@ public class Client
         {
             System.out.println(e);
         }
+    }
 
-        String line = "";
-        while (!line.equals("Over"))
+    public String sendData(String data)
+    {
+        try
         {
-            try
-            {
-                line = System.console().readLine();
-                out.writeUTF(line);
-            }
-            catch (IOException e)
-            {
-                System.out.println(e);
-            }
+            out.writeUTF(data);
+            return rescIn.readUTF();
+            //System.out.println(rescIn.readUTF());
         }
+        catch (IOException e)
+        {
+            System.out.println(e);
+            return "ERROR";
+        }
+    }
 
+    public void disconnect()
+    {
         try
         {
             in.close();
