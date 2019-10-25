@@ -3,6 +3,8 @@
 import java.net.*;
 import java.io.*;
 
+//TODO:
+    //add way to listen for any response that comes in. currently can only listen for data returned after send
 public class Client
 {
     private Socket socket;

@@ -7,6 +7,10 @@
 #define DEFAULT_PORT "3000"
 #define DEFAULT_BUFLEN 512
 
+/*
+* Written By Kora Loudermilk
+*/
+
 int main()
 {
 	//init winsock
@@ -22,7 +26,7 @@ int main()
 
 	//create server socket
 
-	struct addrinfo* result = NULL, hints;
+	struct addrinfo* result = nullptr, hints;
 
 	ZeroMemory(&hints, sizeof(hints));
 	hints.ai_family = AF_INET;
@@ -30,7 +34,7 @@ int main()
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
 
-	errresult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+	errresult = getaddrinfo(nullptr, DEFAULT_PORT, &hints, &result);
 	if (errresult != 0)
 	{
 		std::cerr << "create socket failed code: " << errresult << std::endl;
@@ -77,64 +81,52 @@ int main()
 		return 1;
 	}
 
-	//client socket
-	//TODO: expand for multiple clients
+	fd_set connections;
+	FD_ZERO(&connections);
+	FD_SET(ListenSocket, &connections); //init listen socket for first entry in fd_set
 
-	SOCKET ClientSocket;
-	ClientSocket = accept(ListenSocket, NULL, NULL);
-	if (ClientSocket == INVALID_SOCKET)
+	while (true)
 	{
-		std::cerr << "invalid socket " << WSAGetLastError() << std::endl;
-		closesocket(ListenSocket);
-		WSACleanup();
-		return 1;
-	}
-	std::cout << "connectd" << std::endl;
-	char recvbuf[DEFAULT_BUFLEN];
-	int recvResult, sendResult;
-	int recvbuflen = DEFAULT_BUFLEN;
+		fd_set setCopy = connections;
 
+		int connectionCount = select(0, &setCopy, nullptr, nullptr, nullptr);
 
-	//loop until connection is ended
-	do 
-	{
-		recvResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-		if (recvResult > 0)
+		for (int i = 0; i < connectionCount; i++)
 		{
-			std::string recmessage = std::string(&recvbuf[0], recvResult);
-			std::cout << recmessage << std::endl;
-			sendResult = send(ClientSocket, recvbuf, recvResult, 0);
-			if (sendResult == SOCKET_ERROR)
+			SOCKET socket = setCopy.fd_array[i];
+			if (socket == ListenSocket)  //accept connections
 			{
-				std::cerr << "send failed: " << WSAGetLastError() << std::endl;
-				closesocket(ClientSocket);
-				WSACleanup();
-				return 1;
+				SOCKET client = accept(ListenSocket, nullptr, nullptr);
+				FD_SET(client, &connections);
+				//std::string connected = "connection successful";
+				//send(client, connected.c_str(), connected.size() + 1, 0);
+				std::cout << "client connected" << std::endl;
+			}
+			else
+			{
+				char buf[DEFAULT_BUFLEN];
+				ZeroMemory(buf, DEFAULT_BUFLEN);
+
+				int bytesRecv = recv(socket, buf, DEFAULT_BUFLEN, 0);
+				if (bytesRecv <= 0)
+				{
+					closesocket(socket);
+					FD_CLR(socket, &connections);
+				}
+				else
+				{
+					for (int i = 0; i < connections.fd_count; i++)
+					{
+						SOCKET outSocket = connections.fd_array[i];
+						if (outSocket != ListenSocket)
+						{
+							std::cout << "data recieved : " << std::string(&buf[0], bytesRecv) << std::endl;
+							send(outSocket, buf, bytesRecv, 0);
+						}
+					}
+				}
 			}
 		}
-		else if (recvResult == 0)
-		{
-			std::cout << "connection closing" << std::endl;
-		}
-		else {
-			std::cout << "recv failed: " << WSAGetLastError() << std::endl;
-			closesocket(ClientSocket);
-			WSACleanup();
-			return 1;
-		}
-	} while (recvResult > 0);
 
-	errresult = shutdown(ClientSocket, SD_SEND);
-	if (errresult == SOCKET_ERROR)
-	{
-		std::cerr << "shutdown failed " << WSAGetLastError() << std::endl;
-		closesocket(ClientSocket);
-		WSACleanup();
-		return 1;
 	}
-
-	closesocket(ClientSocket);
-	WSACleanup();
-
-	return 0;
 }
